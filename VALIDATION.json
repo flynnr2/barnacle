@@ -1,0 +1,24 @@
+{
+  "profiles": {
+    "repeater": {
+      "compiled": true,
+      "flashed": false,
+      "ram_gap_bytes": 824,
+      "flash_margin_bytes": 2048
+    },
+    "repeater-clock": {
+      "compiled": true,
+      "flashed": false,
+      "ram_gap_bytes": 784,
+      "flash_margin_bytes": 1536
+    },
+    "time-publisher": {
+      "compiled": true,
+      "flashed": false,
+      "ram_gap_bytes": 784,
+      "flash_margin_bytes": 1792
+    }
+  },
+  "hardware_validation": "Only legacy repeater-clock behavior has device evidence; other profile builds remain unflashed.",
+  "original_project_license": "MIT"
+}

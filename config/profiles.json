@@ -1,0 +1,5 @@
+{
+  "repeater": {"id": 1, "forwarding": true, "hourly_utc": false, "advert_role": "repeater"},
+  "repeater-clock": {"id": 2, "forwarding": true, "hourly_utc": true, "advert_role": "repeater"},
+  "time-publisher": {"id": 3, "forwarding": false, "hourly_utc": true, "advert_role": "sensor"}
+}

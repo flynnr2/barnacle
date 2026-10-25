@@ -1,0 +1,7 @@
+{
+  "meshcore_url": "https://github.com/meshcore-dev/MeshCore.git",
+  "meshcore_commit": "81dbae592ffad40b4212bc0b37e82b38da08f4bc",
+  "cubecell_core": "1.4.0",
+  "crypto_library": "0.4.0",
+  "fqbn": "CubeCell:CubeCell:CubeCell-GPS:LORAWAN_REGION=9,LORAWAN_AT_SUPPORT=1,LORAWAN_RGB=0"
+}

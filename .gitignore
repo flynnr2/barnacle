@@ -1,0 +1,12 @@
+.arduino/
+.venv/
+.secrets/
+vendor/
+build/
+release/
+logs/
+research/
+arduino-cli.yaml
+__pycache__/
+*.pyc
+.DS_Store
