@@ -3,6 +3,10 @@
 Device-specific firmware for the **Heltec HTCC-AB02S / CubeCell GPS**
 (ASR6502 + SX1262 + Air530 + OLED), using a pinned MeshCore routing core.
 
+Barnacle began by repurposing an **IoWE Helium Mapper** device built around
+the Heltec HTCC-AB02S / CubeCell GPS. This project replaces its original
+Helium mapping firmware with MeshCore firmware.
+
 Choose a role explicitly; keep the device identity separate from the role.
 
 | Profile        | Forwarding | Hourly UTC text |
