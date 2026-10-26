@@ -12,7 +12,8 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     'LICENSE', 'README.md', 'PUBLICATION.md', 'THIRD_PARTY_NOTICES.md', 'requirements.txt',
-    'docs/PROFILES.md', 'config/profiles.json', 'config/dependencies.json',
+    'docs/PROFILES.md', 'docs/timing-validation-20261026.txt', 'docs/gnss-firmware-provenance.json',
+    'config/profiles.json', 'config/dependencies.json',
     'docs/images/device-front.jpg', 'docs/images/device-rear.jpg', 'docs/images/device-antenna.jpg',
     'tools/node.py', 'tools/setup.sh', 'tools/check_profiles.sh', 'tools/export_public.py',
     'scripts/setup.sh', 'scripts/check_relay.sh', 'scripts/check_flash_layout.py', 'scripts/decode_relay.py',
@@ -82,7 +83,7 @@ def main():
             r = json.loads(report.read_text())
             validation[name] = dict(compiled=True, flashed=False, ram_gap_bytes=r['ram_gap_bytes'],
                                     flash_margin_bytes=r['flash']['journal_start']-r['flash']['image_checksum_end'])
-    pending['VALIDATION.json'] = (json.dumps(dict(profiles=validation, hardware_validation='Only legacy repeater-clock behavior has device evidence; other profile builds remain unflashed.', original_project_license='MIT'), indent=2)+'\n').encode()
+    pending['VALIDATION.json'] = (json.dumps(dict(profiles=validation, hardware_validation='One repeater-clock device has bounded timing/UART and 125 kHz RF bench evidence; see docs/timing-validation-20261026.txt. Public profile images remain unflashed; production 62.5 kHz RF reception is untested.', original_project_license='MIT'), indent=2)+'\n').encode()
     pending['SOURCE_MANIFEST.json'] = (json.dumps(dict(files={n:hashlib.sha256(d).hexdigest() for n,d in sorted(pending.items())}, git_history_included=False, captures_included=False, binaries_included=False, private_identities_included=False), indent=2)+'\n').encode()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.mkdir()

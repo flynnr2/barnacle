@@ -1,0 +1,21 @@
+{
+  "checked_date": "2026-10-26",
+  "source_article": "https://qrp-labs.com/qmxp/e108fix.html",
+  "source_download": "https://e.pcloud.link/publink/show?code=XZDK0OZb7ujj920vYQWGNIGbRB7RF5bUBzX",
+  "vendor_family": "Ebyte E108 / Goke GK9501",
+  "reported_receiver_version": "GK9501_3.0_Dec 31 2024,GOKE microsemi",
+  "files": {
+    "ebyte-firmwareupgrade.zip": {
+      "bytes": 1600072,
+      "sha256": "045d4319912b3301875a6a8d231b51cd2857cbf284659159ad623fa26b5a8da1"
+    },
+    "7402-0-11.bin": {
+      "bytes": 581644,
+      "sha256": "335fa544459eab47488c2210aae6b0f6329a18b6b578ed13e4cfebf6eb799d08"
+    }
+  },
+  "bundled_in_repository": false,
+  "redistribution_permission": "No general redistribution grant found in the two-file ZIP. QRP Labs states its hosted copy has Ebyte permission; permission for a separate mirror is unestablished.",
+  "air530_compatibility": "Observed operating on one HTCC-AB02S Air530 in bounded tests; not an Air530 manufacturer release or approval for every revision.",
+  "flash_rollback": "Two matching complete normal-flash backups made before programming; full rollback not exercised. OTP/security areas and battery-backed state excluded."
+}
