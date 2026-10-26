@@ -21,6 +21,20 @@ publisher advertises a sensor role. The repeater profiles are compact custom
 forwarders; stock remote administration, Bluetooth and room hosting are not
 implemented.
 
+## Device photographs
+
+The repurposed IoWE Helium Mapper / Heltec HTCC-AB02S shown below.
+The front view shows the OLED and USB connector; the rear view shows the
+Air530 GNSS module and board markings. The third photograph shows the
+external antenna assembly. These hardware photos do not demonstrate RF
+performance or a running firmware profile.
+
+<img src="docs/images/device-front.jpg" alt="Front of the CubeCell GPS board with OLED and micro-USB connector" width="300">
+<img src="docs/images/device-rear.jpg" alt="Rear of the HTCC-AB02S board with Air530 GNSS module" width="300">
+<img src="docs/images/device-antenna.jpg" alt="External antenna assembly connected to the device" width="300">
+
+Embedded photo metadata has been removed from these published copies.
+
 ## Build
 
 The currently validated host is macOS with Arduino CLI and the CubeCell vendor

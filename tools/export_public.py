@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     'LICENSE', 'README.md', 'PUBLICATION.md', 'THIRD_PARTY_NOTICES.md', 'requirements.txt',
     'docs/PROFILES.md', 'config/profiles.json', 'config/dependencies.json',
+    'docs/images/device-front.jpg', 'docs/images/device-rear.jpg', 'docs/images/device-antenna.jpg',
     'tools/node.py', 'tools/setup.sh', 'tools/check_profiles.sh', 'tools/export_public.py',
     'scripts/setup.sh', 'scripts/check_relay.sh', 'scripts/check_flash_layout.py', 'scripts/decode_relay.py',
     'firmware/Beacon/MeshTime.h', 'firmware/Beacon/Location.h',

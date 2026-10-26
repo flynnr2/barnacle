@@ -3,7 +3,7 @@
     ".gitignore": "8955160527909acb7f193f308808f1ce2cf30dfc6e1fed2214234f41aa043d35",
     "LICENSE": "061770860c5e8bbd23b4f31379b436ed9ba610245e97bff45215d6cf66a1a480",
     "PUBLICATION.md": "8bee6ff01f5683cab435225abfb9bcd83d42c569e7ff79a117b7fe5ceac8668c",
-    "README.md": "e3dfc77da7de7bc7399ef2c10b00afb18d20a979c4a5ea3c473374f404d6c997",
+    "README.md": "b100362fe391c719b1be5b7a0f370388b65ed4a913d474d7def713111138acdc",
     "THIRD_PARTY_NOTICES.md": "5270fcd7dbb249fa17b2c2886d17119cc859ff6079268e5a9223d5c7a1a42f35",
     "VALIDATION.json": "5af4879cd75bdaf760aad40f46f7e5d0f1a2509ce0aa8df5e200599a360ad033",
     "config/dependencies.json": "975004bf8db81ed470d9be63aac074ecb73a133c77ab4c545745550df8337236",
@@ -40,9 +40,12 @@
     "tests/relay_stubs/LoRaWan_APP.h": "44d1f381bc296f32ea1ac4a18c7b012e8cc5928070a28a4f3d1fc5e17b104b00",
     "tests/relay_stubs/sx126x.h": "5ea81e58dba1ecfa4d8135b59479b3ff116cb0d627ae384483a624e0263ce95c",
     "tools/check_profiles.sh": "059141e24e414e1c67189662b27ad1fc051d3096f506affa914cb7b993543541",
-    "tools/export_public.py": "c36e88a3aed00e01e645465f29f1ce2ce1dcaeb4f0b6fd217b28fb1d38f23bd1",
+    "tools/export_public.py": "404fe2e7e9b5a0448746696922ecb211c17cf193356b216bcd8d50aa97878f3e",
     "tools/node.py": "6421a287c7947ade01c697981de0abdee9aed93a875ce656ff9dd71bca3f7fe8",
-    "tools/setup.sh": "cf17112adf4ac64ddef64b6513afa13b7a7ad88cf1af341ea754abdf0dd18c35"
+    "tools/setup.sh": "cf17112adf4ac64ddef64b6513afa13b7a7ad88cf1af341ea754abdf0dd18c35",
+    "docs/images/device-rear.jpg": "aa48ac3165faa04bb79304c36d423fc3292ad871549944371794ae4b9374421f",
+    "docs/images/device-antenna.jpg": "e6beb2bb8ee760bb2ed97a825217d899eb031e1fb174503c00927274b791800b",
+    "docs/images/device-front.jpg": "8876149d3c19b658e5275201dc463fc6d764d28e781af08cc337a22b8c30b2cd"
   },
   "git_history_included": false,
   "captures_included": false,
