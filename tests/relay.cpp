@@ -12,6 +12,7 @@
 #include "MeshTime.h"
 #include "RelayClock.h"
 #include "CubeCellRadio.h"
+#include "FlashWindow.h"
 
 static uint32_t tick=1000;
 uint32_t millis(){return tick;}
@@ -135,6 +136,36 @@ struct Flash {
   void read(unsigned i,wardrive::FlashPage &p){assert(i<rows.size());p=rows[i];}
   bool write(unsigned i,const wardrive::FlashPage &p){assert(i<rows.size());if(fail)return false;rows[i]=p;if(torn)rows[i].check^=1;return true;}
 };
+static void deferredPersistence(){
+  using relayfw::flashWindow;
+  assert(flashWindow(10050,10000,true,9990,true,true));
+  assert(!flashWindow(10065,10000,true,9990,true,true));
+  assert(!flashWindow(10050,10000,true,10040,true,true));
+  assert(!flashWindow(10050,10000,false,9990,true,true));
+  assert(!flashWindow(10050,10000,true,9990,false,true));
+  assert(!flashWindow(10050,10000,true,9990,true,false));
+  assert(flashWindow(20,0xfffffff0,true,0xffffff00,true,true));
+  assert(relayfw::stampInterval(0xfffffff0,12,0x7ff0,7)==1000005);
+  Flash io;relayfw::Journal j;Fixture f;
+  auto pending=f.relay.obtainNewPacket();*pending=group(71);
+  // Repeated missed slots leave claims, storage health and transmit queues untouched.
+  for(unsigned i=0;i<100;++i){assert(!j.commitEvent(io,false,123,154800,relayfw::HOURLY_CLAIM,154800));f.step();}
+  assert(j.okay && !j.generation && !j.ledger.lastHour && f.radio.sent.empty());
+  // The staged optional packet does not prevent the actual routing core forwarding.
+  f.inject(group(72));assert(f.relay.forwarded==1 && f.manager.getFreeCount()==3);
+  assert(j.commitEvent(io,true,123,154800,relayfw::HOURLY_CLAIM,154800));
+  relayfw::Journal reboot;reboot.restore(io,123);assert(reboot.ledger.lastHour==43 && reboot.ledger.lastStamp==154800);
+  f.relay.sendOwnFlood(pending);f.step();f.step();assert(f.relay.ownDone==1 && f.manager.getFreeCount()==4);
+  // An actual failed write rolls back the tentative ledger and never grants RF permission.
+  auto saved=j.ledger;io.fail=true;
+  assert(!j.commitEvent(io,true,123,158400,relayfw::HOURLY_CLAIM,158400));
+  assert(!j.okay && j.ledger.lastHour==saved.lastHour && j.ledger.lastStamp==saved.lastStamp);
+  reboot.restore(io,123);assert(reboot.ledger.lastHour==43);
+  Flash advertIO;relayfw::Journal advert;
+  assert(advert.commitEvent(advertIO,true,123,154800,relayfw::ADVERT_CLAIM,154801));
+  assert(advert.ledger.advertFormat==1 && advert.ledger.lastAdvert==154800);
+  puts("PASS deferred flash slots, UART/radio exclusion, raw-RTC wrap, coherent fractions, forwarding during staged own claim, durable-before-TX, failed-claim rollback and advert schema");
+}
 static void storage(const char *output){
   Flash io;relayfw::Journal j;j.restore(io,123);j.ledger.lastHour=42;j.ledger.lastStamp=151200;
   j.ledger.advertFormat=1;
@@ -282,5 +313,5 @@ static void radioAdapter(){
   puts("PASS actual radio adapter via simulated HAL: Boston config, IRQ activity, TX_DONE vs timeout, timer cancellation, RX buffering/metadata/CRC, stale activity, recovery, full TX configuration after AGC fault injection and gain fault");
 }
 #ifndef CUBECELL_PROFILE_TEST
-int main(int argc,char **argv){forwarding();storage(argc>1?argv[1]:nullptr);messages();disciplinedTime();malformed();radioAdapter();}
+int main(int argc,char **argv){forwarding();storage(argc>1?argv[1]:nullptr);deferredPersistence();messages();disciplinedTime();malformed();radioAdapter();}
 #endif

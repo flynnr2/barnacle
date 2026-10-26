@@ -1,0 +1,78 @@
+Bounded CubeCell GPS timing, UART and MeshCore checks — 26 October 2026
+
+One physical HTCC-AB02S / Air530 node was tested using the shared repeater-clock
+source. The public builder's explicit-identity profile images are separately
+compiled; they were not flashed. No private identity, firmware image, precise
+position, raw capture or device flash dump is included in this repository.
+
+Observed defect and patch
+
+An advert-signing stress test with the original 255-byte receive buffer took
+about 0.97 seconds and discarded 237 GNSS bytes. After enlargement to 1,023
+usable bytes, three signing tests took 970.6–971.3 ms, peaked at 678 buffered
+bytes and discarded zero bytes. Prepared adverts were released without TX.
+Signing remains a blocking main-loop operation.
+
+Twenty requested journal summaries plus the boot checkpoint completed in the
+revised bench build. Maximum complete checkpoint duration was 648 RTC ticks
+(19.775 ms). Hardware UART overruns, software drops, UART error flags, flagged
+flash-delayed PPS edges and anchor errors all remained zero. One NMEA checksum
+failure appeared at startup before the signing stress and did not increase.
+
+The RF peer transmitted eight addressed raw MeshCore direct ACK frames: six
+unique and two duplicates. The node received all eight, forwarded six and
+suppressed both duplicates. The independent peer received each correctly
+rewritten forwarded frame exactly once. There were no reported radio CRC,
+header, overflow, malformed, recovery, TX-failure or packet-pool errors. All
+four packet buffers were free at the end. Peer airtime was 488 ms total.
+
+This RF trial used 125 kHz because the SX1302 peer cannot receive 62.5 kHz.
+The actual routing and duplicate handling ran through the pinned MeshCore core.
+It does not prove production-PHY range or reception performance. The bench's
+airtime estimate remained conservative at the production bandwidth.
+
+Bench PPS observations
+
+Of 73 distinct period status samples, 71 were 1,000,013–1,000,018 us, with a
+median of 1,000,015 us. Two acquisition samples were 999,014 and 966,012 us.
+Sampled high times were 99,998–100,004 us. Receiver fix quality weakened during
+the bench; the PPS counter stayed unchanged across a 49.37-second span of host
+status samples, with shorter pauses too. Pending writes deferred, forwarding
+continued and writes completed after PPS returned. The electrical outage
+duration and cause of reception changes were not independently measured.
+
+Production configuration
+
+The normal 62.5 kHz relay was installed after the bench. A 302.2-second saved
+monitoring span contained 145 distinct sampled PPS periods, all between
+1,000,012 and 1,000,017 us, median 1,000,015 us, with no sampled outliers or PPS
+counter pauses after acquisition. Widths were 99,999–100,004 us. Last status:
+eight satellites, HDOP 0.99, GNSS time, 294 counted rising edges and 3,562 valid
+NMEA sentences. The one startup checksum failure did not increase. UART loss,
+UART error, flagged late-edge and anchor-error counters remained zero.
+
+The roughly +15 ppm period offset is relative to the uncalibrated MCU RTC.
+These are software ISR-entry times sampled through status, not every pulse,
+hardware edge capture or calibrated absolute UTC accuracy. No wired PPS path
+into the host's USB modem inputs was demonstrated.
+
+The bootloader verified the installed image checksum. Installed build, radio,
+storage, identity, EEPROM and sticky scheduling claims passed verification.
+EEPROM was byte-identical. All journal rows decoded correctly; intentional
+circular-log appends replaced oldest rows after a complete local backup.
+
+Validation limits
+
+The normal production build uses the same changed firmware sources as the
+bench, with its bench flag absent. The public builder retains its own private
+identity generation and compile-time role configuration. Host sanitizers and
+all three role tests pass. Public profile builds must pass flash/checksum/RAM
+guards; see VALIDATION.json for their current margins.
+
+The finite radio workload used isolated direct ACKs, including arrivals while
+signing. It did not test signed-advert saturation, dense bursts, forced recovery,
+over-the-air queue overload, originated hourly text over RF, production-bandwidth
+RF reception, overnight uptime, surveyed position accuracy or temperature
+behavior. A larger UART buffer does not make cryptography nonblocking or
+guarantee lossless mesh traffic. Missing PPS still prevents optional writes and
+originations; the patch does not create a missing GNSS pulse or improve antennas.

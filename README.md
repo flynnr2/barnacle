@@ -61,6 +61,8 @@ bytes. Local transmission completion is not proof of downstream reception.
 ## Documentation and verification
 
 - [Profiles, identity, scheduling and storage](docs/PROFILES.md)
+- [Timing/UART hardware validation and limits](docs/timing-validation-20261026.txt)
+- [Optional Air530 GNSS update observations and provenance](docs/PROFILES.md#optional-air530-gnss-firmware-investigation)
 - [Publication workflow and private history](PUBLICATION.md)
 - [Third-party notices and project-license decision](THIRD_PARTY_NOTICES.md)
 

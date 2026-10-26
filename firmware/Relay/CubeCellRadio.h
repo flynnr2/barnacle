@@ -9,6 +9,11 @@
 extern TimerEvent_t TxTimeoutTimer;
 
 namespace relayfw {
+#ifdef RELAY_BENCH
+static const unsigned RADIO_BW=0; // SX1302-compatible 125 kHz bench PHY only.
+#else
+static const unsigned RADIO_BW=3; // Production Boston 62.5 kHz.
+#endif
 struct RadioStats {
   volatile uint32_t received=0,crc=0,overflow=0,malformed=0,txTimeouts=0,recoveries=0;
 };
@@ -38,7 +43,7 @@ class CubeCellRadio : public mesh::Radio {
   void listen(){
     if(!okay || transmitting)return;
     ::Radio.Standby();
-    ::Radio.SetRxConfig(MODEM_LORA,3,7,1,0,32,0,false,0,true,false,0,false,true);
+    ::Radio.SetRxConfig(MODEM_LORA,RADIO_BW,7,1,0,32,0,false,0,true,false,0,false,true);
     ::Radio.SetPublicNetwork(false);::Radio.Write(REG_RX_GAIN,0x96);
     okay=::Radio.Read(REG_RX_GAIN)==0x96 && ::Radio.Read(0x0740)==0x14 && ::Radio.Read(0x0741)==0x24;
     if(!okay)return;
@@ -51,7 +56,7 @@ class CubeCellRadio : public mesh::Radio {
     // Match the heard beacon: explicitly restore channel and TX state after
     // calibration, then restore private sync, boosted RX and IRQ activity.
     ::Radio.Sleep();::Radio.SetChannel(910525000);
-    ::Radio.SetTxConfig(MODEM_LORA,22,0,3,7,1,32,false,true,0,0,false,3000);
+    ::Radio.SetTxConfig(MODEM_LORA,22,0,RADIO_BW,7,1,32,false,true,0,0,false,3000);
     ::Radio.SetPublicNetwork(false);okay=::Radio.Read(0x0740)==0x14 && ::Radio.Read(0x0741)==0x24;
     listen();
   }

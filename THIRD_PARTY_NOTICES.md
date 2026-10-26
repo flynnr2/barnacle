@@ -17,3 +17,9 @@ they are not relicensed by this project or included in the source export.
 
 Original project code is licensed under the MIT License; see `LICENSE`.
 Third-party components retain their respective copyright and license notices.
+
+The optional Ebyte/Goke GNSS firmware discussed in `docs/PROFILES.md` is
+third-party binary firmware. Neither it nor the vendor Windows flasher is
+included here or licensed under this project's MIT terms. The recorded
+download hashes identify the tested package, not a grant of redistribution
+rights. See `docs/gnss-firmware-provenance.json` for its source and status.

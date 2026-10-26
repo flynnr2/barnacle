@@ -18,6 +18,15 @@ public:
   uint32_t generation=0,sequence=0,writes=0;
   unsigned index=0;
   bool okay=true;
+  template<class IO> bool commitEvent(IO &io,bool ready,uint32_t identity,uint32_t utc,uint8_t type,
+                                     uint32_t a=0,uint32_t b=0,uint32_t c=0,uint8_t flags=0) {
+    if(!ready)return false; // Deferral must not claim a slot or fault storage.
+    Ledger saved=ledger;
+    if(type==HOURLY_CLAIM){ledger.lastHour=utc/3600;ledger.lastStamp=a;}
+    if(type==ADVERT_CLAIM){ledger.lastAdvert=utc;ledger.lastStamp=a;ledger.advertFormat=1;}
+    if(commit(io,identity,utc,type,a,b,c,flags))return true;
+    ledger=saved;return false;
+  }
   template<class IO> void restore(IO &io,uint32_t identity) {
     uint32_t stateGeneration=0,legacyStamp=0;
     for(unsigned i=0;i<wardrive::FLASH_PAGES;++i){

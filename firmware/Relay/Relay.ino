@@ -2,6 +2,9 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <GPS_Trans.h>
+extern "C" {
+#include <sx126x-board.h>
+}
 #include <HT_SSD1306Wire.h>
 #include <SHA512.h>
 #include <Ed25519.h>
@@ -15,6 +18,7 @@
 #include "CubeCellRadio.h"
 #include "RelayMesh.h"
 #include "RelayMessages.h"
+#include "RelayTiming.h"
 
 extern SSD1306Wire display;
 extern "C" char _etext,__cy_region_init_size_ram;
@@ -33,11 +37,18 @@ static bool gpsRollover=false;
 static uint32_t traceUntil=0;
 static bool gpsLocked=false,displayOK=false,flashSafe=false;
 static unsigned dumpRow=wardrive::FLASH_PAGES;
+static bool bootPending=true;
+static mesh::Packet *preparedOwn=nullptr;
+static uint32_t preparedStamp,preparedDeadline;
+static uint8_t preparedKind;
+#ifdef RELAY_BENCH
+static unsigned benchWrites;
+#endif
 static const uint32_t gnssBauds[]={9600,115200,38400,57600,19200,4800};
 struct FlashIO {
   void read(unsigned i,wardrive::FlashPage &p){FLASH_read_at(wardrive::FLASH_LOG_START+i*256,(uint8_t*)&p,256);}
   bool write(unsigned i,const wardrive::FlashPage &p){
-    return i<wardrive::FLASH_PAGES && FLASH_update(wardrive::FLASH_LOG_START+i*256,&p,256)==0;
+    return i<wardrive::FLASH_PAGES && CySysFlashWriteRow(wardrive::FLASH_LOG_START/256+i,(uint8_t*)&p)==0;
   }
 };
 static FlashIO flash;
@@ -66,7 +77,14 @@ static bool coarseLocation(int32_t &latitude,int32_t &longitude){
     barnacle::coarse(gps.location.lat(),gps.location.lng(),1000,latitude,longitude);
 }
 static bool checkpoint(uint8_t type,uint32_t a=0,uint32_t b=0,uint32_t c=0){
-  return flashSafe && journal.commit(flash,identityHash,utc.epoch,type,a,b,c,uint8_t(utc.source));
+  // Check the radio first, then atomically validate the PPS/UART slot and commit.
+  bool radioIdle=idle();uint8_t irq=CyEnterCriticalSection();
+  if(!flashSafe || !relayfw::timing::ready(radioIdle)){
+    ++relayfw::timing::deferrals;CyExitCriticalSection(irq);return false;
+  }
+  uint32_t start=relayfw::timing::raw();
+  bool okay=journal.commitEvent(flash,true,identityHash,utc.epoch,type,a,b,c,uint8_t(utc.source));
+  relayfw::timing::finishWrite(start);CyExitCriticalSection(irq);return okay;
 }
 static void restore(){
   uint32_t end=uint32_t(&_etext)+uint32_t(&__cy_region_init_size_ram),bootRow,length;
@@ -85,11 +103,11 @@ static void restore(){
   utc.lastStamp=journal.ledger.lastStamp;
   uint32_t seed=journal.ledger.epoch>BUILD_EPOCH?journal.ledger.epoch:BUILD_EPOCH;
   utc.startFallback(seed,millis());
-  if(flashSafe)checkpoint(relayfw::RELAY_BOOT,BUILD_EPOCH);
+  // Boot persistence waits for the same safe slot as runtime writes.
 }
 static void readGNSS(){
   uint32_t before=gps.passedChecksum();
-  for(unsigned i=0;i<256 && GPSSerial.available();++i)gps.encode(GPSSerial.read());
+  for(unsigned i=0;i<1024 && relayfw::timing::available();++i)gps.encode(relayfw::timing::read());
   if(gps.passedChecksum()!=before){gpsLocked=true;lastGNSSSentence=millis();}
   if((!gpsLocked && uint32_t(millis()-baudTick)>=4000) ||
      (gpsLocked && uint32_t(millis()-lastGNSSSentence)>=15000)){
@@ -104,29 +122,32 @@ static void readGNSS(){
 }
 static bool claim(mesh::Packet *p,uint8_t kind,uint32_t stamp){
   // Signing/encryption took time; check for a receive before writing flash.
-  if(!idle()){relay.releasePacket(p);return false;}
-  journal.ledger.lastStamp=stamp;
-  if(kind==1)journal.ledger.lastHour=utc.epoch/3600;
-  else{journal.ledger.lastAdvert=utc.epoch;journal.ledger.advertFormat=1;}
+  if(!idle())return false;
   // Readback-verified durable claim MUST precede queueing any own transmission.
   if(!checkpoint(kind==1?relayfw::HOURLY_CLAIM:relayfw::ADVERT_CLAIM,stamp)){
-    relay.releasePacket(p);return false;
+    return false;
   }
   utc.lastStamp=stamp;relay.ownKind=kind;
   ownDeadline=millis()+(kind==1?(6-utc.epoch%3600)*1000:5000);
   relay.sendOwnFlood(p);return true;
 }
 static void ownMessages(){
-  if(dumpRow<wardrive::FLASH_PAGES || relay.own || relay.result || !utc.canAdvertise() || !flashSafe || !journal.okay || !rf.okay || !idle() || packets.getFreeCount()<2)return;
+  if(preparedOwn){
+    if(barnacle::due(millis(),preparedDeadline) || !schedule.trusted(millis()) || packets.getOutboundTotal() || !journal.okay){
+      relay.releasePacket(preparedOwn);preparedOwn=nullptr;
+    }else if(!bootPending && claim(preparedOwn,preparedKind,preparedStamp))preparedOwn=nullptr;
+    return;
+  }
+  if(bootPending || dumpRow<wardrive::FLASH_PAGES || relay.own || relay.result || !utc.canAdvertise() || !flashSafe || !journal.okay || !rf.okay || !idle() || packets.getFreeCount()<2)return;
   if(relayfw::profile::HOURLY_TIME && schedule.due(utc.epoch,journal.ledger.lastHour,millis())){
     uint32_t stamp=utc.nextStamp();
     auto p=relayfw::utcMessage(relay,testChannel,utc.epoch,stamp,!goodGNSSFix() || uint32_t(millis()-schedule.lastSync)>=5000);
-    if(p)claim(p,1,stamp);
+    if(p){preparedOwn=p;preparedKind=1;preparedStamp=stamp;preparedDeadline=millis()+(6-utc.epoch%3600)*1000;}
   }else if(uint32_t(millis()-schedule.bootTick)>=30000 && schedule.trusted(millis()) &&
            (!journal.ledger.advertFormat || !journal.ledger.lastAdvert || (utc.epoch>=journal.ledger.lastAdvert && utc.epoch-journal.ledger.lastAdvert>=47UL*3600))){
     int32_t lat=0,lon=0;if(!coarseLocation(lat,lon))return;
     uint32_t stamp=utc.nextStamp();auto p=relayfw::advert(relay,IDENTITY_SEED,stamp,true,lat,lon);if(!p)return;
-    claim(p,2,stamp);
+    preparedOwn=p;preparedKind=2;preparedStamp=stamp;preparedDeadline=millis()+5000;
   }
 }
 static uint32_t totalErrors(){return relay.txFailures+rf.stats.crc+rf.stats.overflow+rf.stats.malformed+rf.stats.recoveries+relay.poolDrops;}
@@ -151,9 +172,12 @@ static void status(){
     (unsigned long)gnssBauds[baudIndex],gpsRollover,(unsigned long)(millis()-schedule.lastSync));
   Serial.printf("CLOCK candidate=%lu samples=%u rejected=%lu corrections=%lu\r\n",(unsigned long)discipline.candidate,
     discipline.samples,(unsigned long)discipline.rejected,(unsigned long)discipline.corrections);
+  relayfw::timing::status();
   Serial.printf("HEALTH oled=%u radio_rx=%u policy_drops=%lu pool_drops=%lu tx_timeouts=%lu sync=%02x%02x gain=%02x trace=%u\r\n",
     displayOK,rf.isInRecvMode(),(unsigned long)relay.policyDrops,(unsigned long)relay.poolDrops,(unsigned long)rf.stats.txTimeouts,
     ::Radio.Read(0x0740),::Radio.Read(0x0741),::Radio.Read(REG_RX_GAIN),traceUntil && !barnacle::due(millis(),traceUntil));
+  uint8_t hw[6];SX126xReadCommand(RADIO_GET_STATS,hw,6);
+  Serial.printf("RFSTAT rx=%u crc=%u header=%u\r\n",unsigned(hw[0])*256+hw[1],unsigned(hw[2])*256+hw[3],unsigned(hw[4])*256+hw[5]);
   Serial.print("PUBLIC_KEY ");hex(relay.self_id.pub_key,32);
   int32_t lat=0,lon=0;bool fix=coarseLocation(lat,lon);
   Serial.printf("LOCATION grid_m=1000 fresh=%u lat_micro=%ld lon_micro=%ld advert_format=%u\r\n",fix,(long)lat,(long)lon,journal.ledger.advertFormat);
@@ -185,6 +209,15 @@ static void serialService(){
       command[commandLen]=0;
       if(!overflow && commandLen){
         if(!strcmp(command,"status"))status();
+#ifdef RELAY_BENCH
+        else if(!strcmp(command,"bench write")){if(benchWrites<20)++benchWrites;}
+        else if(!strcmp(command,"bench crypto")){
+          uint32_t start=relayfw::timing::raw();
+          auto p=relayfw::advert(relay,IDENTITY_SEED,utc.epoch);
+          if(p)relay.releasePacket(p);
+          Serial.printf("BENCH crypto_ticks=%lu prepared=%u transmitted=0\r\n",(unsigned long)(relayfw::timing::raw()-start),p!=nullptr);
+        }
+#endif
         else if(!strcmp(command,"flash dump"))dumpRow=0;
         else if(!strcmp(command,"screen")){
           if(displayOK && idle()){
@@ -211,7 +244,7 @@ static void serialService(){
 }
 void setup(){
   Serial.begin(115200);pinMode(GPIO14,OUTPUT);digitalWrite(GPIO14,LOW);pinMode(Vext,OUTPUT);digitalWrite(Vext,LOW);
-  GPSSerial.begin(9600);delay(300);displayOK=display.init();
+  delay(300);displayOK=display.init();
   Wire.beginTransmission(0x3c);displayOK=displayOK && Wire.endTransmission()==0;
   if(displayOK){display.setTextAlignment(TEXT_ALIGN_LEFT);display.setContrast(80);}
   relayfw::importIdentity(relay.self_id,IDENTITY_SEED);
@@ -224,18 +257,24 @@ void setup(){
   relay.begin();rng.state=::Radio.Random();if(!rng.state)rng.state=1;
   // Radio.Random may change the chip state; return to known configured RX.
   rf.begin();schedule.bootTick=millis();lastSummary=millis();lastErrorLog=millis();
+  GPSSerial.begin(9600);relayfw::timing::begin();
   Serial.printf("%s; profile=%s; Boston; scopes bos,northeast,east; read-only serial\r\n",relayfw::profile::NAME,relayfw::profile::ROLE);status();screen(true);
 }
 void loop(){
+  relayfw::timing::loop();
   ::Radio.IrqProcess();utc.advance(millis());readGNSS();schedule.expire(millis());
   relay.cancelOwn(barnacle::due(millis(),ownDeadline));relay.loop();
   if(idle() && dumpRow==wardrive::FLASH_PAGES && flashSafe && journal.okay){
-    if(relay.result){checkpoint(relay.result==1?relayfw::OWN_TX_DONE:relay.result==2?relayfw::OWN_TX_FAIL:relayfw::OWN_TX_SKIP,relay.ownKind,journal.ledger.lastStamp);relay.result=0;}
+    if(bootPending){if(checkpoint(relayfw::RELAY_BOOT,BUILD_EPOCH))bootPending=false;}
+    else if(relay.result){if(checkpoint(relay.result==1?relayfw::OWN_TX_DONE:relay.result==2?relayfw::OWN_TX_FAIL:relayfw::OWN_TX_SKIP,relay.ownKind,journal.ledger.lastStamp))relay.result=0;}
+#ifdef RELAY_BENCH
+    else if(benchWrites){if(checkpoint(relayfw::SUMMARY,relay.forwarded,rf.stats.received,totalErrors()))--benchWrites;}
+#endif
     else if(uint32_t(millis()-lastSummary)>=900000){
-      checkpoint(relayfw::SUMMARY,relay.forwarded,rf.stats.received,totalErrors());lastSummary=millis();
+      if(checkpoint(relayfw::SUMMARY,relay.forwarded,rf.stats.received,totalErrors()))lastSummary=millis();
     }else if(totalErrors()!=loggedErrors && uint32_t(millis()-lastErrorLog)>=900000){
-      checkpoint(relayfw::ERROR_SUMMARY,relay.txFailures,rf.stats.crc,rf.stats.overflow+rf.stats.malformed+relay.poolDrops);
-      lastErrorLog=millis();loggedErrors=totalErrors();
+      if(checkpoint(relayfw::ERROR_SUMMARY,relay.txFailures,rf.stats.crc,rf.stats.overflow+rf.stats.malformed+relay.poolDrops)){
+        lastErrorLog=millis();loggedErrors=totalErrors();}
     }
   }
   ownMessages();serialService();screen();

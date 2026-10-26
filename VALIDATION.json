@@ -3,22 +3,22 @@
     "repeater": {
       "compiled": true,
       "flashed": false,
-      "ram_gap_bytes": 824,
-      "flash_margin_bytes": 2048
+      "ram_gap_bytes": 696,
+      "flash_margin_bytes": 768
     },
     "repeater-clock": {
       "compiled": true,
       "flashed": false,
-      "ram_gap_bytes": 784,
-      "flash_margin_bytes": 1536
+      "ram_gap_bytes": 656,
+      "flash_margin_bytes": 512
     },
     "time-publisher": {
       "compiled": true,
       "flashed": false,
-      "ram_gap_bytes": 784,
-      "flash_margin_bytes": 1792
+      "ram_gap_bytes": 656,
+      "flash_margin_bytes": 768
     }
   },
-  "hardware_validation": "Only legacy repeater-clock behavior has device evidence; other profile builds remain unflashed.",
+  "hardware_validation": "One repeater-clock device has bounded timing/UART and 125 kHz RF bench evidence; see docs/timing-validation-20261026.txt. Public profile images remain unflashed; production 62.5 kHz RF reception is untested.",
   "original_project_license": "MIT"
 }
